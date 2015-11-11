@@ -6,6 +6,7 @@ import ij.gui.WaitForUserDialog;
 import ij.io.OpenDialog;
 import ij.WindowManager;
 import java.io.File;
+import ij.measure.Calibration;
 
 public class PLA_Dendrites extends ImagePlus implements PlugIn {
 
@@ -13,7 +14,7 @@ public class PLA_Dendrites extends ImagePlus implements PlugIn {
 	public static String os_system = "";
 	public static String os_slash = "";
 
-	public static String version = "0.71";
+	public static String version = "0.80";
 
 	public void run(String arg) {
 		IJ.log("-----------------[ Start PLA_Dendrites V"+version+" ]-----------------");
@@ -30,6 +31,19 @@ public class PLA_Dendrites extends ImagePlus implements PlugIn {
 		String imageName = imp.getTitle();
 		IJ.log("img: "+imageName+" path: "+path);
 		
+		// GET MEASUREMENTS (PIXLE/MICRONS)
+		Calibration cal = imp.getCalibration();
+		double x = cal.pixelWidth;
+		double y = cal.pixelHeight;
+		
+		IJ.run(imp, "Select All", "");
+        Integer oldWidth = (int)imp.getRoi().getFloatWidth();
+		Integer oldHeight = (int)imp.getRoi().getFloatHeight();
+        double distance = oldHeight/(oldHeight*x);
+        
+        IJ.run(imp, "Select None", "");
+		IJ.log("Measurements: "+x+" x "+y+" | "+oldWidth+" x "+oldHeight+" = "+(oldHeight*x)+" => distance: "+oldHeight/(oldHeight*x));
+		
 		IJ.setTool("polyline");
 		imp.show();
 		new WaitForUserDialog("Selection required", "1. Track the dendrite with left clicks.\n\n2. Place your last selection with right click. \n\n3. Press the OK button to continue").show();
@@ -39,6 +53,7 @@ public class PLA_Dendrites extends ImagePlus implements PlugIn {
 		IJ.log("img2: "+imp2.getTitle());
 		
 		String fullpath = createPaths(path);
+		IJ.run(imp2, "Set Scale...", "distance="+distance+" known=1 pixel=1 unit=micron");
 		IJ.saveAs(imp2, "Tiff", fullpath+os_slash+imp2.getTitle());
 		imp2.close();
 		

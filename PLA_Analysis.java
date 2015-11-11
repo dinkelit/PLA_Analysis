@@ -26,13 +26,14 @@ public class PLA_Analysis extends ImagePlus implements PlugIn {
     public static Integer autoThreshold = 0;        
     /////////// --------------------------------------------
 
-    public static String version = "0.82";
+    public static String version = "0.83";
     public static String path = "";
     public static String pathChannels;
     public static String pathAnalysis;
     public static ArrayList<String> imageFiles;
     public static ArrayList<String> plaResults;
-    // Format of singleResults:
+    
+	// Format of singleResults:
     public static Integer headerElements;
     public static ArrayList<String> csvHeader;
     public static String singleResults;
@@ -41,8 +42,12 @@ public class PLA_Analysis extends ImagePlus implements PlugIn {
     
     public static Double map2Area;
     public static Double plaArea;
+	public static Double totalIntDen;
+	public static Double maxIntDen;
+	public static Double minIntDen;
     public static Double sumMAP2Area;
     public static Double sumPLAArea;
+	public static Double sumIntDen;
 
     public static Integer countedAreas;
     public static Integer numAreas;
@@ -64,6 +69,10 @@ public class PLA_Analysis extends ImagePlus implements PlugIn {
     sumPLAArea = 0.0;
     countedAreas = 0;
     numAreas = 0;
+	totalIntDen = 0.0;
+	maxIntDen = 0.0;
+	minIntDen = 99999999.99;
+	sumIntDen = 0.0;
     
     os_system = System.getProperty("os.name");
     if (os_system.contains("Mac"))
@@ -105,6 +114,7 @@ public class PLA_Analysis extends ImagePlus implements PlugIn {
     	for (int i=0; i<imageFiles.size(); i++){
     		plaArea = 0.0;
     		map2Area = 0.0;
+			totalIntDen = 0.0;
     		imageName = imageFiles.get(i);
             if (csvHeader.size() < headerElements)
                 csvHeader.add("imagename");
@@ -119,6 +129,7 @@ public class PLA_Analysis extends ImagePlus implements PlugIn {
 
             sumMAP2Area += map2Area;
             sumPLAArea += plaArea;
+			sumIntDen += (totalIntDen/countedAreas);
             
             HTMLString = makeHTML(i, imageName, false, HTMLString);
             allResults = allResults + singleResults+"\n";
@@ -283,22 +294,28 @@ public class PLA_Analysis extends ImagePlus implements PlugIn {
         //dilGreen.show();
         //String origTitle = dilGreen.getTitle();
         IJ.selectWindow("mask");
-        IJ.run("Set Measurements...", "area mean gray redirect=DUP_green.tif decimal=3");
+        IJ.run("Set Measurements...", "area mean integrated gray redirect=DUP_green.tif decimal=3");
         IJ.run("Analyze Particles...", "size=0-Infinity circularity=0.00-100.00 show display clear add in_situ");
 
         IJ.selectWindow("Results");
-
+		
         ResultsTable rt = ResultsTable.getResultsTable();
         Integer numResults = rt.getCounter();
         Integer numColumns = rt.getLastColumn();
-        Double area, mean, totalArea;
-        area=0.0; mean=0.0; totalArea=0.0;
+		IJ.log("- Amount of columns: "+numColumns.toString());
+        Double area, mean, intDen, rawIntDen, totalArea;
+        area=0.0; mean=0.0; intDen =0.0; rawIntDen=0.0; totalArea=0.0;
 		countedAreas = 0;
         numAreas = numResults;
         
         for (int i = 0; i<numResults; i++){
             area = rt.getValueAsDouble(0,i);
             mean = rt.getValueAsDouble(1,i);
+			intDen = rt.getValueAsDouble(20,i);
+			rawIntDen = rt.getValueAsDouble(25,i);
+
+			//IJ.log("- IntDen "+intDen.toString());
+
             String addExcluded = "";
             if (area > areaMaxValue)
                 addExcluded = " - TOO LARGE!!!";
@@ -308,11 +325,16 @@ public class PLA_Analysis extends ImagePlus implements PlugIn {
             if (mean>0.0 && area <= areaMaxValue){
                 totalArea += area;
                 countedAreas++;
+				totalIntDen += intDen;
+				
+				if (intDen > maxIntDen) maxIntDen = intDen;
+				if (intDen < minIntDen) minIntDen = intDen;
+				
             }
         }
 
-        IJ.log("- PLA Area: "+String.valueOf(totalArea)+" (counted: "+countedAreas.toString()+"/"+numResults.toString()+")");
-        IJ.saveAs("Results", pathAnalysis+os_slash+imageName+"_Results.xls"); // just _Results.xls contains PLA area
+        IJ.log("- PLA Area: "+String.valueOf(totalArea)+" (counted: "+countedAreas.toString()+"/"+numResults.toString()+") intden: "+intDen.toString()+" rawint: "+rawIntDen.toString());
+        IJ.saveAs("Results", pathAnalysis+os_slash+imageName+"_Results.csv"); // XLS OR CSV		// just _Results.xls contains PLA area
         IJ.run("Close");
 
         IJ.selectWindow("mask");
@@ -355,7 +377,7 @@ public class PLA_Analysis extends ImagePlus implements PlugIn {
 
         //IJ.log("- MAP2 Area: "+String.valueOf(thisMap2Area)+" micron? = "+(String.valueOf(thisMap2Area)).contains("."));
             
-        IJ.saveAs("Results", pathAnalysis+os_slash+imageName+"_NeuronArea__Results.xls"); //_NeuronArea_Results.xls contains MAP2 Area
+        IJ.saveAs("Results", pathAnalysis+os_slash+imageName+"_NeuronArea__Results.csv"); // XLS OR CSV //_NeuronArea_Results.xls contains MAP2 Area
         IJ.run("Close");
 
         IJ.log("-- PLA/MAP2 - RATIO: "+String.valueOf(plaArea/thisMap2Area)+"   * 100 = "+String.valueOf((plaArea/thisMap2Area)*100));
@@ -380,11 +402,12 @@ public class PLA_Analysis extends ImagePlus implements PlugIn {
                 IJ.log("------------- SUMMARY -------------");
                 Double meanPLA = sumPLAArea/imageFiles.size();
                 Double meanMAP2 = sumMAP2Area/imageFiles.size();
+				Double meanIntDen = sumIntDen/imageFiles.size();
                 Double meanRatio = ((meanPLA/imageFiles.size()) / (meanMAP2/imageFiles.size()))*100;
                 IJ.log("SUM of Areas [PLA] "+String.valueOf(sumPLAArea)+" / [MAP2] "+String.valueOf(sumMAP2Area)+" = "+String.valueOf(sumPLAArea/sumMAP2Area));
                 IJ.log("MEAN Value [PLA] "+String.valueOf(meanPLA)+" / [MAP2] "+String.valueOf(meanMAP2)+" = "+String.valueOf(meanRatio));
                 
-            String HTMLHeader = "<html><head><title>PLA-Analysis</title><link href=\"../HTML/style.css\" rel=\"stylesheet\" type=\"text/css\"></head><body><div id=\"main_container\"><h1>Analysis of PLA</h1><div class=\"content_left\"><p>MAP2-Threshold</p><p>PLA-Threshold</p><p>Analyzed images</p><p>Mean-PLA</p><p>Mean-MAP2</p><p>Mean-Ratio</p></div><div class=\"content_right\"><p>Auto</p><p>"+plaThreshold+"</p><p>"+imageFiles.size()+"</p><p>"+String.format("%.2f", meanPLA)+"</p><p>"+String.format("%.2f", meanMAP2)+"</p><p>"+String.format("%.2f", meanRatio)+"%</p><p><a href=\"ALL_RESULTS.csv\" target=\"blank\"> >> ALL_RESULTS.csv</a></p></div><div class=\"clear_float\"></div>";
+            String HTMLHeader = "<html><head><title>PLA-Analysis</title><link href=\"../HTML/style.css\" rel=\"stylesheet\" type=\"text/css\"></head><body><div id=\"main_container\"><h1>Analysis of PLA</h1><div class=\"content_left\"><p>MAP2-Threshold</p><p>PLA-Threshold</p><p>Analyzed images</p><p>Mean-PLA</p><p>Mean-MAP2</p><p>Mean-Ratio</p><p>Mean-Intensity</p></div><div class=\"content_right\"><p>Auto</p><p>"+plaThreshold+"</p><p>"+imageFiles.size()+"</p><p>"+String.format("%.2f", meanPLA)+"</p><p>"+String.format("%.2f", meanMAP2)+"</p><p>"+String.format("%.2f", meanRatio)+"%</p><p>"+String.format("%.2f", meanIntDen)+"</p><p><a href=\"ALL_RESULTS.csv\" target=\"blank\"> >> ALL_RESULTS.csv</a></p></div><div class=\"clear_float\"></div>";
             String fullHTML = HTMLHeader+HTMLString;
             try {
             PrintWriter writer = new PrintWriter(pathAnalysis+os_slash+"results_summary.html", "UTF-8");
@@ -476,7 +499,7 @@ public class PLA_Analysis extends ImagePlus implements PlugIn {
 			IJ.run("Close");
 
             // append HTML-data to HTML-File
-            HTMLString += "<div class=\"results\"><h2>"+imageName+"</h2><div class=\"upper_content_box\"><h3>Results</h3><div class=\"content_left\"><p>MAP2 Area</p><p>MAP2-THR</p><p>PLA Area</p><p>Ratio</p><p>Counted</p></div><div class=\"content_right\"><p>"+String.format("%.2f", map2Area)+"</p><p>"+String.valueOf(autoThreshold)+"</p><p>"+String.format("%.2f", plaArea)+"</p><p>"+String.format("%.2f", (plaArea/map2Area)*100)+"%</p><p>"+countedAreas.toString()+"/"+numAreas.toString()+"</p></div></div><div class=\"upper_content_box\"><h3>Original Image</h3><a href=\"../HTML/"+imageName+".png\" target=\"blank\"><img src=\"../HTML/"+imageName+".png\" /></a></div><div class=\"upper_content_box\"><h3>Dilated mask</h3><a href=\"DIL_MASK_"+imageName+".png\" target=\"blank\"><img src=\"DIL_MASK_"+imageName+".png\" /></a></div><div class=\"clear_float\"></div><h4>Channels</h4><div class=\"lower_content_box\">    <a href=\"../HTML/"+i.toString()+"/red_orig.png\" target=\"blank\"><img src=\"../HTML/"+i.toString()+"/red_orig.png\" /></a>    <a href=\"../HTML/"+i.toString()+"/red_inverted.png\" target=\"blank\"><img src=\"../HTML/"+i.toString()+"/red_inverted.png\" /></a></div>   <div class=\"lower_content_box\"><a href=\"PLA_MASK_"+imageName+".png\" target=\"blank\"><img src=\"PLA_MASK_"+imageName+".png\" /></a>PLA Mask</div>     <div class=\"lower_content_box\">    <a href=\"../HTML/"+i.toString()+"/green_orig.png\" target=\"blank\"><img src=\"../HTML/"+i.toString()+"/green_orig.png\" /></a>    <a href=\"../HTML/"+i.toString()+"/green_inverted.png\" target=\"blank\"><img src=\"../HTML/"+i.toString()+"/green_inverted.png\" /></a></div></div><div class=\"clear_float\"></div>";
+            HTMLString += "<div class=\"results\"><h2>"+imageName+"</h2><div class=\"upper_content_box\"><h3>Results</h3><div class=\"content_left\"><p>MAP2 Area</p><p>MAP2-THR</p><p>PLA Area</p><p>Ratio</p><p>Counted</p><p>&empty;Intensity</p></div><div class=\"content_right\"><p>"+String.format("%.2f", map2Area)+"</p><p>"+String.valueOf(autoThreshold)+"</p><p>"+String.format("%.2f", plaArea)+"</p><p>"+String.format("%.2f", (plaArea/map2Area)*100)+"%</p><p>"+countedAreas.toString()+"/"+numAreas.toString()+"</p><p>"+String.format("%.2f", (totalIntDen/countedAreas))+"</p></div></div><div class=\"upper_content_box\"><h3>Original Image</h3><a href=\"../HTML/"+imageName+".png\" target=\"blank\"><img src=\"../HTML/"+imageName+".png\" /></a></div><div class=\"upper_content_box\"><h3>Dilated mask</h3><a href=\"DIL_MASK_"+imageName+".png\" target=\"blank\"><img src=\"DIL_MASK_"+imageName+".png\" /></a></div><div class=\"clear_float\"></div><h4>Channels</h4><div class=\"lower_content_box\">    <a href=\"../HTML/"+i.toString()+"/red_orig.png\" target=\"blank\"><img src=\"../HTML/"+i.toString()+"/red_orig.png\" /></a>    <a href=\"../HTML/"+i.toString()+"/red_inverted.png\" target=\"blank\"><img src=\"../HTML/"+i.toString()+"/red_inverted.png\" /></a></div>   <div class=\"lower_content_box\"><a href=\"PLA_MASK_"+imageName+".png\" target=\"blank\"><img src=\"PLA_MASK_"+imageName+".png\" /></a>&nbsp;<b>PLA Mask</b><br /><br />&nbsp;<b>Intensity</b><br />&nbsp;min: "+String.format("%.2f",minIntDen)+"<br />&nbsp;max: "+String.format("%.2f",maxIntDen)+"</div>     <div class=\"lower_content_box\">    <a href=\"../HTML/"+i.toString()+"/green_orig.png\" target=\"blank\"><img src=\"../HTML/"+i.toString()+"/green_orig.png\" /></a>    <a href=\"../HTML/"+i.toString()+"/green_inverted.png\" target=\"blank\"><img src=\"../HTML/"+i.toString()+"/green_inverted.png\" /></a></div></div><div class=\"clear_float\"></div>";
             //countedAreas.toString()+"/"+numAreas.toString()
             if (csvHeader.size() < headerElements)
                 csvHeader.add("counted_areas;total_areas");
@@ -492,7 +515,7 @@ public class PLA_Analysis extends ImagePlus implements PlugIn {
 
     public void writeCSS(){
         String pathCSS = path+os_slash+"pla"+os_slash+"HTML"+os_slash;
-        String cssString = "@font-face {font-family: 'Dosis';font-style: normal;font-weight: 400;src: local('Dosis Regular'), local('Dosis-Regular'), url(http://themes.googleusercontent.com/static/fonts/dosis/v2/xIAtSaglM8LZOYdGmG1JqQ.woff) format('woff');} body, div, h1, h2, h3, h4, h5, h6, p, ul, ol, li, dl, dt, dd, img, form, fieldset, input, textarea, blockquote {margin: 0; padding: 0; border: 0;} body {font: 15px 'Dosis', sans-serif; text-transform: uppercase; } #main_container {position:relative;margin:0px auto;width: 820px;} .results{position:relative;background-color: white;margin-top:40px;margin-left:20px;padding-left:10px;width: 800px;border:0px;border-top: 1px solid grey;} .upper_content_box{position:relative;float:left;background-color:white;margin-right:10px;margin-top:0px;height:260px;width:250px;} .results .upper_content_box img{width:248px;height:248px;border: 1px solid grey;} .lower_content_box{position:relative;background-color:white;float:left;margin-right:10px;margin-bottom:10px;height:122px;width:250px;} .results h4{color:red;} .results .lower_content_box img{position:relative;float:left;margin-left:2px;width:120px;height:120px;border: 1px solid grey;} .clear_float{clear:both;} .content_left{float:left;background-color:white;padding-top:40px;} .content_right{float:left;margin-left:10px;background-color:white;padding-top:40px;} h2{color:grey;} .content_left p{margin-bottom:10px;text-align:right;font-size:20px;} .content_right p{margin-bottom:10px;text-align:left;font-size:20px;} .results .upper_content_box img:hover {border-color:blue;} .results .lower_content_box img:hover {border-color:blue;} a:link { text-decoration:none; } a:visited { text-decoration:none;  } a:hover { text-decoration:none; } a:active { text-decoration:none;  } a:focus { text-decoration:none;  }";
+        String cssString = "@font-face {font-family: 'Dosis';font-style: normal;font-weight: 400;src: local('Dosis Regular'), local('Dosis-Regular'), url(http://themes.googleusercontent.com/static/fonts/dosis/v2/xIAtSaglM8LZOYdGmG1JqQ.woff) format('woff');} body, div, h1, h2, h3, h4, h5, h6, p, ul, ol, li, dl, dt, dd, img, form, fieldset, input, textarea, blockquote {margin: 0; padding: 0; border: 0;} body {font: 15px 'Dosis', sans-serif; text-transform: uppercase; } #main_container {position:relative;margin:0px auto;width: 820px;} .results{position:relative;background-color: white;margin-top:40px;margin-left:20px;padding-left:10px;width: 800px;border:0px;border-top: 1px solid grey;} .upper_content_box{position:relative;float:left;background-color:white;margin-right:10px;margin-top:0px;height:260px;width:250px;} .results .upper_content_box img{width:248px;height:248px;border: 1px solid grey;} .lower_content_box{position:relative;background-color:white;float:left;margin-right:10px;margin-bottom:10px;height:122px;width:250px;} .results h4{color:red;} .results .lower_content_box img{position:relative;float:left;margin-left:2px;width:120px;height:120px;border: 1px solid grey;} .clear_float{clear:both;} .content_left{float:left;background-color:white;padding-top:20px;} .content_right{float:left;margin-left:10px;background-color:white;padding-top:20px;} h2{color:grey;} .content_left p{margin-bottom:10px;text-align:right;font-size:20px;} .content_right p{margin-bottom:10px;text-align:left;font-size:20px;} .results .upper_content_box img:hover {border-color:blue;} .results .lower_content_box img:hover {border-color:blue;} a:link { text-decoration:none; } a:visited { text-decoration:none;  } a:hover { text-decoration:none; } a:active { text-decoration:none;  } a:focus { text-decoration:none;  }";
         
         try {
             PrintWriter writer = new PrintWriter(pathCSS+"style.css", "UTF-8");

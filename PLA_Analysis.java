@@ -115,6 +115,9 @@ public class PLA_Analysis extends ImagePlus implements PlugIn {
     		plaArea = 0.0;
     		map2Area = 0.0;
 			totalIntDen = 0.0;
+			maxIntDen = 0.0;
+			minIntDen = 99999999.99;
+
     		imageName = imageFiles.get(i);
             if (csvHeader.size() < headerElements)
                 csvHeader.add("imagename");

@@ -26,7 +26,7 @@ public class PLA_Analysis extends ImagePlus implements PlugIn {
     public static Integer autoThreshold = 0;        
     /////////// --------------------------------------------
 
-    public static String version = "0.83";
+    public static String version = "0.84";
     public static String path = "";
     public static String pathChannels;
     public static String pathAnalysis;
@@ -58,7 +58,7 @@ public class PLA_Analysis extends ImagePlus implements PlugIn {
     
     imageFiles = new ArrayList<String>();
     plaResults = new ArrayList<String>();
-    headerElements = 6;
+    headerElements = 7;
     csvHeader = new ArrayList<String>();
     singleResults = "";
     allResults = "";
@@ -337,7 +337,7 @@ public class PLA_Analysis extends ImagePlus implements PlugIn {
         }
 
         IJ.log("- PLA Area: "+String.valueOf(totalArea)+" (counted: "+countedAreas.toString()+"/"+numResults.toString()+") intden: "+intDen.toString()+" rawint: "+rawIntDen.toString());
-        IJ.saveAs("Results", pathAnalysis+os_slash+imageName+"_Results.csv"); // XLS OR CSV		// just _Results.xls contains PLA area
+        IJ.saveAs("Results", pathAnalysis+os_slash+imageName+"_Results.xls"); // XLS OR CSV		// just _Results.xls contains PLA area
         IJ.run("Close");
 
         IJ.selectWindow("mask");
@@ -347,6 +347,13 @@ public class PLA_Analysis extends ImagePlus implements PlugIn {
         if (csvHeader.size() < headerElements)
             csvHeader.add("pla");
         singleResults += String.format("%.6f",ret)+";";
+		
+		if (csvHeader.size() < headerElements)
+            csvHeader.add("min-pla-int;max-pla-int;mean-pla-int");
+		
+		double thisMeanIntDen = (totalIntDen/countedAreas);
+		singleResults += String.format("%.4f",minIntDen)+";"+String.format("%.4f",maxIntDen)+";"+String.format("%.4f",thisMeanIntDen)+";";		// String.format("%.2f",maxIntDen)
+		
         return ret;
     }
 
@@ -380,7 +387,7 @@ public class PLA_Analysis extends ImagePlus implements PlugIn {
 
         //IJ.log("- MAP2 Area: "+String.valueOf(thisMap2Area)+" micron? = "+(String.valueOf(thisMap2Area)).contains("."));
             
-        IJ.saveAs("Results", pathAnalysis+os_slash+imageName+"_NeuronArea__Results.csv"); // XLS OR CSV //_NeuronArea_Results.xls contains MAP2 Area
+        IJ.saveAs("Results", pathAnalysis+os_slash+imageName+"_NeuronArea__Results.xls"); // XLS OR CSV //_NeuronArea_Results.xls contains MAP2 Area
         IJ.run("Close");
 
         IJ.log("-- PLA/MAP2 - RATIO: "+String.valueOf(plaArea/thisMap2Area)+"   * 100 = "+String.valueOf((plaArea/thisMap2Area)*100));

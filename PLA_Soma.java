@@ -14,7 +14,7 @@ public class PLA_Soma extends ImagePlus implements PlugIn {
 	public static String os_system = "";
 	public static String os_slash = "";
 
-	public static String version = "0.80";
+	public static String version = "0.85";
 
 	public void run(String arg) {
 		IJ.log("-----------------[ Start PLA_Soma V"+version+" ]-----------------");
@@ -53,6 +53,11 @@ public class PLA_Soma extends ImagePlus implements PlugIn {
 
 		Integer newWidth = (int)imp.getRoi().getFloatWidth();
 		Integer newHeight = (int)imp.getRoi().getFloatHeight();
+		
+		// Add 1/3 of height and width to the borders to make sure that the cell mass is less than the background
+		newHeight += 2*(int)(newHeight/3);
+		newWidth  += 2*(int)(newWidth/3);
+		
 		Integer bitDepth = imp.getBitDepth();
 		IJ.log("NewFile: "+newWidth+" x "+newHeight+" bitD: "+bitDepth);
 		imp.close();
@@ -64,18 +69,10 @@ public class PLA_Soma extends ImagePlus implements PlugIn {
         IJ.run(imp2, "Set Scale...", "distance="+distance+" known=1 pixel=1 unit=micron");
 		IJ.saveAs(imp2, "Tiff", fullpath+os_slash+imp2.getTitle());
 
-		GenericDialog gd = new GenericDialog("Perform a PLA-analysis?");
-		gd.addMessage("The brushed image will be saved in a folder 'Brushed' within this destination:\n\n"+path+"\n\nClick OK to perform a PLA-analysis on the 'Brushed' folder");
-		gd.showDialog();
-		if (gd.wasCanceled()) {
-			IJ.run("Close All", "");
-            System.gc();
-			return;
-		}else{
-			IJ.run("Run PLA-analysis on a folder", "choose="+fullpath);
-            System.gc();
-            return;
-		}
+		//IJ.run("Close All", "");
+        System.gc();
+		return;
+
 	}
 
    	public String createPaths(String path){

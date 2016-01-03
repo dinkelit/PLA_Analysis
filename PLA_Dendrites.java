@@ -14,7 +14,7 @@ public class PLA_Dendrites extends ImagePlus implements PlugIn {
 	public static String os_system = "";
 	public static String os_slash = "";
 
-	public static String version = "0.80";
+	public static String version = "0.85";
 
 	public void run(String arg) {
 		IJ.log("-----------------[ Start PLA_Dendrites V"+version+" ]-----------------");
@@ -57,18 +57,9 @@ public class PLA_Dendrites extends ImagePlus implements PlugIn {
 		IJ.saveAs(imp2, "Tiff", fullpath+os_slash+imp2.getTitle());
 		imp2.close();
 		
-		GenericDialog gd = new GenericDialog("Perform a PLA-analysis?");
-		gd.addMessage("The straightened image will be saved in a folder 'Straightened' within this destination:\n\n"+path+"\n\nClick OK to perform a PLA-analysis on the 'Straightened' folder");
-		gd.showDialog();
-		if (gd.wasCanceled()) {
-			IJ.run("Close All", "");
-            System.gc();
-			return;
-		}else{
-			IJ.run("Run PLA-analysis on a folder", "choose="+fullpath);
-            System.gc();
-            return;
-		}
+		//IJ.run("Close All", "");
+        System.gc();
+		return;
 
 	}
 

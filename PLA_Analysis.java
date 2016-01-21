@@ -24,9 +24,10 @@ public class PLA_Analysis extends ImagePlus implements PlugIn {
     public static Double areaMaxValue = 9999999.0;  	// AREA UPPER BOUND FOR MAX PLA-SIZE
     public static Boolean fixedThreshold = true;	// SET TO 0 IF YOU WANT TO DEFINE IT AUTOMATICALLY, OTHERWISE YOUR FIXED VALUE WILL BE USED
     public static Integer autoThreshold = 0;        
+    public static String map2ThresholdMethod;
     /////////// --------------------------------------------
 
-    public static String version = "0.85";
+    public static String version = "0.86";
     public static String path = "";
     public static String pathChannels;
     public static String pathAnalysis;
@@ -91,8 +92,8 @@ public class PLA_Analysis extends ImagePlus implements PlugIn {
 	gd_map.showDialog();
     if (gd_map.wasCanceled()) return;
     autoThreshold = Math.max(0,Math.min((int)gd_map.getNextNumber(),254));
-    if (autoThreshold == 0) {fixedThreshold = false;}
-    else fixedThreshold = true;
+    if (autoThreshold == 0) {fixedThreshold = false; map2ThresholdMethod = "Auto";}
+    else {fixedThreshold = true; map2ThresholdMethod = autoThreshold.toString();}
 
      // Ask for automatic/fixed MAP2-threshold
     GenericDialog gd_pla = new GenericDialog("PLA-Threshold");
@@ -417,7 +418,7 @@ public class PLA_Analysis extends ImagePlus implements PlugIn {
                 IJ.log("SUM of Areas [PLA] "+String.valueOf(sumPLAArea)+" / [MAP2] "+String.valueOf(sumMAP2Area)+" = "+String.valueOf(sumPLAArea/sumMAP2Area));
                 IJ.log("MEAN Value [PLA] "+String.valueOf(meanPLA)+" / [MAP2] "+String.valueOf(meanMAP2)+" = "+String.valueOf(meanRatio));
                 
-            String HTMLHeader = "<html><head><title>PLA-Analysis</title><link href=\"../HTML/style.css\" rel=\"stylesheet\" type=\"text/css\"></head><body><div id=\"main_container\"><h1>Analysis of PLA</h1><div class=\"content_left\"><p>MAP2-Threshold</p><p>PLA-Threshold</p><p>Analyzed images</p><p>Mean-PLA</p><p>Mean-MAP2</p><p>Mean-Ratio</p><p>Mean-Intensity</p></div><div class=\"content_right\"><p>Auto</p><p>"+plaThreshold+"</p><p>"+imageFiles.size()+"</p><p>"+String.format("%.2f", meanPLA)+"</p><p>"+String.format("%.2f", meanMAP2)+"</p><p>"+String.format("%.2f", meanRatio)+"%</p><p>"+String.format("%.2f", meanIntDen)+"</p><p><a href=\"ALL_RESULTS.csv\" target=\"blank\"> >> ALL_RESULTS.csv</a></p></div><div class=\"clear_float\"></div>";
+            String HTMLHeader = "<html><head><title>PLA-Analysis</title><link href=\"../HTML/style.css\" rel=\"stylesheet\" type=\"text/css\"></head><body><div id=\"main_container\"><h1>Analysis of PLA</h1><div class=\"content_left\"><p>MAP2-Threshold</p><p>PLA-Threshold</p><p>Analyzed images</p><p>Mean-PLA</p><p>Mean-MAP2</p><p>Mean-Ratio</p><p>Mean-Intensity</p></div><div class=\"content_right\"><p>"+map2ThresholdMethod+"</p><p>"+plaThreshold+"</p><p>"+imageFiles.size()+"</p><p>"+String.format("%.2f", meanPLA)+"</p><p>"+String.format("%.2f", meanMAP2)+"</p><p>"+String.format("%.2f", meanRatio)+"%</p><p>"+String.format("%.2f", meanIntDen)+"</p><p><a href=\"ALL_RESULTS.csv\" target=\"blank\"> >> ALL_RESULTS.csv</a></p></div><div class=\"clear_float\"></div>";
             String fullHTML = HTMLHeader+HTMLString;
             try {
             PrintWriter writer = new PrintWriter(pathAnalysis+os_slash+"results_summary.html", "UTF-8");
